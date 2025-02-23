@@ -40,37 +40,36 @@ namespace FitnessFormula.Controllers
                 .ToListAsync();
         }
 
-        [HttpGet("user/{userId}")]
-        public async Task<ActionResult<IEnumerable<object>>> GetWorkoutsByUser(int userId)
+        [HttpGet("trainer/{trainerId}")]
+        public async Task<ActionResult<IEnumerable<object>>> GetWorkoutsByTrainer(int trainerId)
         {
-            var workouts = await _context.WorkoutRegistrations
-                .Where(wr => wr.UserId == userId)
-                .Include(wr => wr.Workout)
-                .ThenInclude(w => w.Trainer)
-                .Select(wr => new
+            var workouts = await _context.Workouts
+                .Where(w => w.TrainerId == trainerId)
+                .Select(w => new
                 {
-                    wr.Workout.WorkoutId,
-                    wr.Workout.Title,
-                    wr.Workout.StartTime,
-                    wr.Workout.Description,
-                    wr.Workout.TrainerId,
-                    wr.Workout.ImageUrl,
-                    Trainer = wr.Workout.Trainer != null ? new
+                    w.WorkoutId,
+                    w.Title,
+                    w.StartTime,
+                    w.Description,
+                    w.TrainerId,
+                    w.ImageUrl,
+                    Trainer = new
                     {
-                        wr.Workout.Trainer.TrainerId,
-                        wr.Workout.Trainer.Description,
-                        wr.Workout.Trainer.ExperienceYears
-                    } : null
+                        w.Trainer.TrainerId,
+                        w.Trainer.Description,
+                        w.Trainer.ExperienceYears
+                    }
                 })
                 .ToListAsync();
 
             if (!workouts.Any())
             {
-                return NotFound($"Нет тренировок, на которые подписан пользователь с ID {userId}.");
+                return NotFound($"Нет тренировок для тренера с ID {trainerId}.");
             }
 
             return workouts;
         }
+
 
         [HttpPost]
         public async Task<ActionResult<object>> CreateWorkout([FromBody] WorkoutCreateRequest request)
