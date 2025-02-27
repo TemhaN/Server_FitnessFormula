@@ -81,6 +81,41 @@ namespace FitnessFormula.Controllers
             });
         }
 
+        [HttpGet("user/{userId}")]
+        public async Task<ActionResult<object>> GetTrainerByUserId(int userId)
+        {
+            var trainer = await _context.Trainers
+                .Include(t => t.User)
+                .Include(t => t.TrainerSkills)
+                .ThenInclude(ts => ts.Skill)
+                .FirstOrDefaultAsync(t => t.UserId == userId);
+
+            if (trainer == null)
+            {
+                return NotFound(new { message = "Тренер не найден для пользователя с ID " + userId });
+            }
+
+            return Ok(new
+            {
+                TrainerId = trainer.TrainerId,
+                Description = trainer.Description ?? "Описание отсутствует",
+                ExperienceYears = trainer.ExperienceYears,
+                Skills = trainer.TrainerSkills.Select(ts => new
+                {
+                    SkillId = ts.Skill.SkillId,
+                    SkillName = ts.Skill.SkillName
+                }).ToList(),
+                User = new UserDto
+                {
+                    UserId = trainer.User.UserId,
+                    FullName = trainer.User.FullName ?? "Неизвестный",
+                    Email = trainer.User.Email ?? "Нет email",
+                    PhoneNumber = trainer.User.PhoneNumber ?? "Нет телефона",
+                    Avatar = trainer.User.Avatar ?? "Нет аватара",
+                    RegistrationDate = trainer.User.RegistrationDate
+                }
+            });
+        }
 
         [HttpPost]
         public async Task<IActionResult> CreateTrainer([FromBody] TrainerRequest request)
@@ -149,9 +184,9 @@ namespace FitnessFormula.Controllers
                 return CreatedAtAction(nameof(GetTrainerById), new { id = trainer.TrainerId }, new
                 {
                     message = "Тренер успешно зарегистрирован",
-                    trainer = new
+                    user = new
                     {
-                        trainerId = trainer.TrainerId,
+                        userId = user.UserId,
                         fullName = user.FullName,
                         email = user.Email,
                         experienceYears = trainer.ExperienceYears,
@@ -170,6 +205,7 @@ namespace FitnessFormula.Controllers
                 return StatusCode(500, new { message = "Ошибка сервера", error = ex.InnerException?.Message ?? ex.Message });
             }
         }
+
 
         private async Task<UserSession> CreateUserSession(int userId)
         {
@@ -203,7 +239,7 @@ namespace FitnessFormula.Controllers
             public string Email { get; set; }
             public string PhoneNumber { get; set; }
             public string Password { get; set; }
-            public string Avatar { get; set; }
+            public string? Avatar { get; set; }
         }
 
         public class UserDto
@@ -212,7 +248,7 @@ namespace FitnessFormula.Controllers
             public string FullName { get; set; }
             public string Email { get; set; }
             public string PhoneNumber { get; set; }
-            public string Avatar { get; set; }
+            public string? Avatar { get; set; }
             public DateTime RegistrationDate { get; set; }
         }
     }

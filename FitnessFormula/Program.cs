@@ -6,27 +6,44 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using Npgsql; // добавь, если нет
+
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.WebHost.UseUrls("http://192.168.8.158:7112", "https://192.168.8.158:7113"); // Привязка к рабочему IP
 
-//builder.WebHost.UseUrls("http://192.168.176.86:7112", "https://192.168.176.86:7113"); // Привязка к рабочему IP
+//builder.WebHost.UseUrls("http://192.168.242.86:7112", "https://192.168.242.86:7113"); // Привязка к рабочему IP
 
+// Настройка CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", builder =>
+    {
+        builder.AllowAnyOrigin() // Разрешить запросы с любых доменов
+               .AllowAnyMethod()  // Разрешить любые HTTP методы
+               .AllowAnyHeader(); // Разрешить любые заголовки
+    });
+});
+
+//services.AddDbContext<ApplicationDbContext>(options =>
+//    options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection")));
 
 
 // Подключение к БД
 builder.Services.AddDbContext<FitnessDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// Добавление контроллеров и Swagger
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+// Применение CORS политики
+app.UseCors("AllowAll");
 
 if (app.Environment.IsDevelopment())
 {
@@ -36,4 +53,5 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthorization();
 app.MapControllers();
+
 app.Run();

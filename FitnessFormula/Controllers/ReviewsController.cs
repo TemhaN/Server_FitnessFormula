@@ -86,6 +86,7 @@ namespace FitnessFormula.Controllers
                     r.TrainerId,
                     Trainer = r.Trainer != null ? new
                     {
+                        r.Trainer.User.FullName,
                         r.Trainer.Description,
                         r.Trainer.ExperienceYears
                     } : null,

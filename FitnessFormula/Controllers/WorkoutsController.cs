@@ -40,6 +40,41 @@ namespace FitnessFormula.Controllers
                 .ToListAsync();
         }
 
+        [HttpGet("{id}")]
+        public async Task<ActionResult<object>> GetWorkoutById(int id)
+        {
+            var workout = await _context.Workouts
+                .Include(w => w.Trainer)
+                .Where(w => w.WorkoutId == id)
+                .Select(w => new
+                {
+                    w.WorkoutId,
+                    w.Title,
+                    w.StartTime,
+                    w.Description,
+                    w.TrainerId,
+                    w.ImageUrl,
+                    Trainer = w.Trainer != null ? new
+                    {
+                        w.Trainer.TrainerId,
+                        w.Trainer.User.Avatar,
+                        w.Trainer.User.FullName,
+                        w.Trainer.User.PhoneNumber,
+                        w.Trainer.Description,
+                        w.Trainer.ExperienceYears
+                    } : null
+                })
+                .FirstOrDefaultAsync();
+
+            if (workout == null)
+            {
+                return NotFound($"Тренировка с ID {id} не найдена.");
+            }
+
+            return workout;
+        }
+
+
         [HttpGet("trainer/{trainerId}")]
         public async Task<ActionResult<IEnumerable<object>>> GetWorkoutsByTrainer(int trainerId)
         {
