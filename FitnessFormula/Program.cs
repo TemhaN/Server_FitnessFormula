@@ -10,9 +10,10 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql; // добавь, если нет
 
 
+
 var builder = WebApplication.CreateBuilder(args);
 
-builder.WebHost.UseUrls("http://192.168.8.158:7112", "https://192.168.8.158:7113"); // Привязка к рабочему IP
+//builder.WebHost.UseUrls("http://192.168.95.86:7112", "https://192.168.95.86:7113"); // Привязка к рабочему IP
 
 //builder.WebHost.UseUrls("http://192.168.242.86:7112", "https://192.168.242.86:7113"); // Привязка к рабочему IP
 
@@ -41,6 +42,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+app.UseStaticFiles();
+
 
 // Применение CORS политики
 app.UseCors("AllowAll");

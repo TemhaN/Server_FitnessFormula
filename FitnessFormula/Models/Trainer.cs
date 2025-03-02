@@ -4,6 +4,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 public class Trainer
 {
+    [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int TrainerId { get; set; }
     public string Description { get; set; }
     public int ExperienceYears { get; set; }

@@ -158,7 +158,92 @@ namespace FitnessFormula.Controllers
             return session;
         }
 
-        public class UserRegisterRequest
+        [HttpPut("update/{id}")]
+        public async Task<ActionResult<object>> UpdateUser(int id, [FromForm] UserUpdateRequest request)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null)
+            {
+                return NotFound(new { message = "Пользователь не найден." });
+            }
+
+            // Обновляем поля, если они переданы и не равны null
+            if (!string.IsNullOrEmpty(request.FullName))
+            {
+                user.FullName = request.FullName;
+            }
+
+            if (!string.IsNullOrEmpty(request.Email))
+            {
+                var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email && u.UserId != id);
+                if (existingUser != null)
+                {
+                    return Conflict(new { message = "Пользователь с таким email уже существует." });
+                }
+                user.Email = request.Email;
+            }
+
+            if (!string.IsNullOrEmpty(request.PhoneNumber))
+            {
+                user.PhoneNumber = request.PhoneNumber;
+            }
+
+            if (!string.IsNullOrEmpty(request.Password))
+            {
+                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+            }
+
+            // Обработка аватарки
+            if (request.AvatarFile != null && request.AvatarFile.Length > 0)
+            {
+                var imagesFolderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images");
+                if (!Directory.Exists(imagesFolderPath))
+                {
+                    Directory.CreateDirectory(imagesFolderPath);
+                }
+
+                var fileName = Guid.NewGuid().ToString() + Path.GetExtension(request.AvatarFile.FileName);
+                var filePath = Path.Combine(imagesFolderPath, fileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await request.AvatarFile.CopyToAsync(stream);
+                }
+
+                user.Avatar = $"/images/{fileName}";
+            }
+
+            _context.Users.Update(user);
+
+            // Отключаем обновление даты регистрации
+            _context.Entry(user).Property(u => u.RegistrationDate).IsModified = false;
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Данные пользователя успешно обновлены",
+                user = new
+                {
+                    user.UserId,
+                    user.FullName,
+                    user.Email,
+                    user.PhoneNumber,
+                    user.Avatar,
+                    user.RegistrationDate
+                }
+            });
+        }
+
+        public class UserUpdateRequest
+        {
+            public string? FullName { get; set; }
+            public string? Email { get; set; }
+            public string? PhoneNumber { get; set; }
+            public string? Password { get; set; }
+            public IFormFile? AvatarFile { get; set; } // Файл аватарки
+        }
+
+    public class UserRegisterRequest
         {
             public string FullName { get; set; }
             public string Email { get; set; }

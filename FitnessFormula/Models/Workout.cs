@@ -1,7 +1,12 @@
-﻿namespace FitnessFormula.Models
+﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations;
+
+namespace FitnessFormula.Models
 {
     public class Workout
     {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int WorkoutId { get; set; }
         public string Title { get; set; }
         public DateTime StartTime { get; set; }

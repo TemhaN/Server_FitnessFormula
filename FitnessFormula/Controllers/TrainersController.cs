@@ -116,7 +116,6 @@ namespace FitnessFormula.Controllers
                 }
             });
         }
-
         [HttpPost]
         public async Task<IActionResult> CreateTrainer([FromBody] TrainerRequest request)
         {
@@ -152,7 +151,7 @@ namespace FitnessFormula.Controllers
 
                 var trainer = new Trainer
                 {
-                    UserId = user.UserId,
+                    UserId = user.UserId, // Связываем тренера с пользователем
                     Description = request.Description,
                     ExperienceYears = request.ExperienceYears
                 };
@@ -169,7 +168,7 @@ namespace FitnessFormula.Controllers
 
                     var trainerSkills = validSkillIds.Select(skillId => new TrainerSkills
                     {
-                        TrainerId = trainer.TrainerId,
+                        TrainerId = trainer.TrainerId, // Используем автоматически сгенерированный TrainerId
                         SkillId = skillId
                     }).ToList();
 

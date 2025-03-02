@@ -107,40 +107,87 @@ namespace FitnessFormula.Controllers
 
 
         [HttpPost]
-        public async Task<ActionResult<object>> CreateWorkout([FromBody] WorkoutCreateRequest request)
+        public async Task<ActionResult<object>> CreateWorkout([FromForm] WorkoutCreateRequest request)
         {
+            // Проверяем, существует ли тренер
             var trainer = await _context.Trainers.FindAsync(request.TrainerId);
             if (trainer == null)
             {
                 return NotFound(new { message = "Тренер не найден" });
             }
 
+            // Проверяем, что файл изображения был передан
+            if (request.ImageFile == null || request.ImageFile.Length == 0)
+            {
+                return BadRequest(new { message = "Файл изображения не был загружен." });
+            }
+
+            // Путь к папке wwwroot/images
+            var imagesFolderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images");
+
+            // Если папка не существует, создаем её
+            if (!Directory.Exists(imagesFolderPath))
+            {
+                Directory.CreateDirectory(imagesFolderPath);
+            }
+
+            // Генерируем уникальное имя файла
+            var fileName = Guid.NewGuid().ToString() + Path.GetExtension(request.ImageFile.FileName);
+
+            // Полный путь для сохранения файла
+            var filePath = Path.Combine(imagesFolderPath, fileName);
+
+            // Сохраняем файл на сервере
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await request.ImageFile.CopyToAsync(stream);
+            }
+
+            // Генерируем URL для доступа к файлу
+            var imageUrl = $"/images/{fileName}";
+
+            // Преобразуем StartTime в UTC
+            var startTimeUtc = request.StartTime.ToUniversalTime();
+
+            // Создаем новый объект Workout
             var workout = new Workout
             {
                 Title = request.Title,
-                StartTime = request.StartTime,
+                StartTime = startTimeUtc,
                 Description = request.Description,
                 TrainerId = request.TrainerId,
-                ImageUrl = request.ImageUrl
+                ImageUrl = imageUrl // Сохраняем URL изображения
             };
 
+            // Добавляем workout в контекст
             _context.Workouts.Add(workout);
-            await _context.SaveChangesAsync();
 
+            // Сохраняем изменения в базе данных
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                // Логируем ошибку
+                Console.WriteLine(ex.Message);
+                return StatusCode(500, new { message = "Ошибка при сохранении данных в базу данных." });
+            }
+
+            // Возвращаем успешный результат
             return CreatedAtAction(nameof(GetWorkouts), new { id = workout.WorkoutId }, new
             {
                 message = "Тренировка успешно создана",
                 workout
             });
         }
-
         public class WorkoutCreateRequest
         {
             public string Title { get; set; }
             public DateTime StartTime { get; set; }
             public string Description { get; set; }
             public int TrainerId { get; set; }
-            public string ImageUrl { get; set; }
+            public IFormFile ImageFile { get; set; } // Файл изображения
         }
     }
 }
