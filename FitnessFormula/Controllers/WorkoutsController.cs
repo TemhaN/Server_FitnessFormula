@@ -181,6 +181,52 @@ namespace FitnessFormula.Controllers
                 workout
             });
         }
+
+        [HttpGet("{workoutId}/registrations/trainer/{trainerId}")]
+        public async Task<ActionResult<object>> GetWorkoutRegistrations(int workoutId, int trainerId)
+        {
+            // Проверяем, существует ли тренировка и принадлежит ли она указанному тренеру
+            var workout = await _context.Workouts
+                .FirstOrDefaultAsync(w => w.WorkoutId == workoutId && w.TrainerId == trainerId);
+
+            if (workout == null)
+            {
+                return NotFound(new { message = $"Тренировка с ID {workoutId} не найдена или не принадлежит тренеру с ID {trainerId}." });
+            }
+
+            // Получаем список зарегистрированных пользователей
+            var registrations = await _context.WorkoutRegistrations
+                .Where(wr => wr.WorkoutId == workoutId)
+                .Include(wr => wr.User)
+                .Select(wr => new
+                {
+                    RegistrationId = wr.RegistrationId,
+                    User = new
+                    {
+                        UserId = wr.User.UserId,
+                        FullName = wr.User.FullName,
+                        Email = wr.User.Email,
+                        PhoneNumber = wr.User.PhoneNumber,
+                        Avatar = wr.User.Avatar,
+                        RegistrationDate = wr.User.RegistrationDate
+                    },
+                    RegistrationDate = wr.RegistrationDate
+                })
+                .ToListAsync();
+
+            // Подсчитываем количество зарегистрированных пользователей
+            var totalUsers = registrations.Count;
+
+            return Ok(new
+            {
+                WorkoutId = workoutId,
+                Title = workout.Title,
+                StartTime = workout.StartTime,
+                TotalUsers = totalUsers,
+                Registrations = registrations
+            });
+        }
+
         public class WorkoutCreateRequest
         {
             public string Title { get; set; }

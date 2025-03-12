@@ -7,15 +7,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.EntityFrameworkCore;
-using Npgsql; // добавь, если нет
+using Npgsql;
 
 
 
 var builder = WebApplication.CreateBuilder(args);
-
-//builder.WebHost.UseUrls("http://192.168.95.86:7112", "https://192.168.95.86:7113"); // Привязка к рабочему IP
-
-//builder.WebHost.UseUrls("http://192.168.242.86:7112", "https://192.168.242.86:7113"); // Привязка к рабочему IP
 
 // Настройка CORS
 builder.Services.AddCors(options =>
@@ -27,10 +23,6 @@ builder.Services.AddCors(options =>
                .AllowAnyHeader(); // Разрешить любые заголовки
     });
 });
-
-//services.AddDbContext<ApplicationDbContext>(options =>
-//    options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection")));
-
 
 // Подключение к БД
 builder.Services.AddDbContext<FitnessDbContext>(options =>
