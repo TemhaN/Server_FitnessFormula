@@ -14,5 +14,7 @@ public class Trainer
     public User User { get; set; }
 
     public ICollection<TrainerSkills> TrainerSkills { get; set; } = new List<TrainerSkills>();
+    public ICollection<Review> Reviews { get; set; } = new List<Review>();
+    public List<Workout> Workouts { get; set; } = new List<Workout>();
 }
 

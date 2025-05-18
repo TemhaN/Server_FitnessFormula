@@ -24,12 +24,14 @@ namespace FitnessFormula.Controllers
                 .Include(t => t.User)
                 .Include(t => t.TrainerSkills)
                 .ThenInclude(ts => ts.Skill)
+                .Include(t => t.Reviews)
                 .Select(t => new
                 {
                     TrainerId = t.TrainerId,
                     UserId = t.UserId,
                     Description = t.Description ?? "Описание отсутствует",
                     ExperienceYears = t.ExperienceYears,
+                    AverageRating = t.Reviews.Any() ? t.Reviews.Average(r => r.Rating) : 0.0,
                     Skills = t.TrainerSkills.Select(ts => new
                     {
                         SkillId = ts.Skill.SkillId,
@@ -55,6 +57,7 @@ namespace FitnessFormula.Controllers
                 .Include(t => t.User)
                 .Include(t => t.TrainerSkills)
                 .ThenInclude(ts => ts.Skill)
+                .Include(t => t.Reviews)
                 .FirstOrDefaultAsync(t => t.TrainerId == id);
 
             if (trainer == null) return NotFound(new { message = "Тренер не найден" });
@@ -64,6 +67,7 @@ namespace FitnessFormula.Controllers
                 TrainerId = trainer.TrainerId,
                 Description = trainer.Description,
                 ExperienceYears = trainer.ExperienceYears,
+                AverageRating = trainer.Reviews.Any() ? trainer.Reviews.Average(r => r.Rating) : 0.0,
                 Skills = trainer.TrainerSkills.Select(ts => new
                 {
                     SkillId = ts.Skill.SkillId,
@@ -88,6 +92,7 @@ namespace FitnessFormula.Controllers
                 .Include(t => t.User)
                 .Include(t => t.TrainerSkills)
                 .ThenInclude(ts => ts.Skill)
+                .Include(t => t.Reviews)
                 .FirstOrDefaultAsync(t => t.UserId == userId);
 
             if (trainer == null)
@@ -100,6 +105,7 @@ namespace FitnessFormula.Controllers
                 TrainerId = trainer.TrainerId,
                 Description = trainer.Description ?? "Описание отсутствует",
                 ExperienceYears = trainer.ExperienceYears,
+                AverageRating = trainer.Reviews.Any() ? trainer.Reviews.Average(r => r.Rating) : 0.0,
                 Skills = trainer.TrainerSkills.Select(ts => new
                 {
                     SkillId = ts.Skill.SkillId,
@@ -116,6 +122,7 @@ namespace FitnessFormula.Controllers
                 }
             });
         }
+
         [HttpPost]
         public async Task<IActionResult> CreateTrainer([FromBody] TrainerRequest request)
         {
@@ -151,7 +158,7 @@ namespace FitnessFormula.Controllers
 
                 var trainer = new Trainer
                 {
-                    UserId = user.UserId, // Связываем тренера с пользователем
+                    UserId = user.UserId,
                     Description = request.Description,
                     ExperienceYears = request.ExperienceYears
                 };
@@ -168,7 +175,7 @@ namespace FitnessFormula.Controllers
 
                     var trainerSkills = validSkillIds.Select(skillId => new TrainerSkills
                     {
-                        TrainerId = trainer.TrainerId, // Используем автоматически сгенерированный TrainerId
+                        TrainerId = trainer.TrainerId,
                         SkillId = skillId
                     }).ToList();
 
@@ -205,6 +212,74 @@ namespace FitnessFormula.Controllers
             }
         }
 
+        [HttpGet("{id}/statistics")]
+        public async Task<ActionResult<object>> GetTrainerStatistics(int id)
+        {
+            var trainer = await _context.Trainers
+                .Include(t => t.User)
+                .Include(t => t.TrainerSkills)
+                .ThenInclude(ts => ts.Skill)
+                .Include(t => t.Reviews)
+                .Include(t => t.Workouts)
+                .ThenInclude(w => w.WorkoutRegistrations)
+                .FirstOrDefaultAsync(t => t.TrainerId == id);
+
+            if (trainer == null)
+            {
+                return NotFound(new { message = "Тренер не найден" });
+            }
+
+            // Средний рейтинг и количество отзывов
+            var averageRating = trainer.Reviews.Any() ? trainer.Reviews.Average(r => r.Rating) : 0.0;
+            var reviewCount = trainer.Reviews.Count;
+
+            // Количество тренировок
+            var workoutCount = trainer.Workouts.Count;
+
+            // Количество уникальных участников и общее число регистраций
+            var registrations = trainer.Workouts
+                .SelectMany(w => w.WorkoutRegistrations)
+                .ToList();
+            var uniqueParticipants = registrations
+                .Select(r => r.UserId)
+                .Distinct()
+                .Count();
+            var totalRegistrations = registrations.Count;
+
+            // Навыки тренера
+            var skills = trainer.TrainerSkills
+                .Select(ts => new
+                {
+                    SkillId = ts.Skill.SkillId,
+                    SkillName = ts.Skill.SkillName
+                })
+                .ToList();
+
+            return Ok(new
+            {
+                TrainerId = trainer.TrainerId,
+                User = new
+                {
+                    UserId = trainer.User.UserId,
+                    FullName = trainer.User.FullName ?? "Неизвестный",
+                    Email = trainer.User.Email ?? "Нет email",
+                    PhoneNumber = trainer.User.PhoneNumber ?? "Нет телефона",
+                    Avatar = trainer.User.Avatar ?? "Нет аватара",
+                    RegistrationDate = trainer.User.RegistrationDate
+                },
+                Description = trainer.Description ?? "Описание отсутствует",
+                ExperienceYears = trainer.ExperienceYears,
+                Statistics = new
+                {
+                    AverageRating = Math.Round(averageRating, 2),
+                    ReviewCount = reviewCount,
+                    WorkoutCount = workoutCount,
+                    UniqueParticipants = uniqueParticipants,
+                    TotalRegistrations = totalRegistrations
+                },
+                Skills = skills
+            });
+        }
 
         private async Task<UserSession> CreateUserSession(int userId)
         {

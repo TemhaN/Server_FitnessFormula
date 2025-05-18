@@ -6,8 +6,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using FitnessFormula.Services;
 
 
 
@@ -32,11 +32,14 @@ builder.Services.AddDbContext<FitnessDbContext>(options =>
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddHostedService<WorkoutReminderService>();
 
 var app = builder.Build();
 
 app.UseStaticFiles();
 
+app.UseHttpsRedirection();
 
 // Применение CORS политики
 app.UseCors("AllowAll");

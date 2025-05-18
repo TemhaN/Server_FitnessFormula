@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FitnessFormula.Controllers
 {
-    // Контроллер отзывов
     [ApiController]
     [Route("api/[controller]")]
     public class ReviewsController : ControllerBase
@@ -114,7 +113,7 @@ namespace FitnessFormula.Controllers
                 UserId = request.UserId,
                 Rating = request.Rating,
                 Comment = request.Comment,
-                ReviewDate = DateTime.UtcNow // Устанавливаем дату на сервере
+                ReviewDate = DateTime.UtcNow
             };
 
             _context.Reviews.Add(review);
@@ -123,7 +122,6 @@ namespace FitnessFormula.Controllers
             return CreatedAtAction(nameof(GetReviews), new { id = review.ReviewId }, review);
         }
 
-        // Класс для обработки запроса
         public class ReviewRequest
         {
             public int TrainerId { get; set; }

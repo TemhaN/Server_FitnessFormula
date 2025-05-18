@@ -1,4 +1,6 @@
-﻿namespace FitnessFormula.Models
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace FitnessFormula.Models
 {
     public class Review
     {
@@ -7,6 +9,8 @@
         public Trainer Trainer { get; set; }
         public int UserId { get; set; }
         public User User { get; set; }
+        [Required]
+        [Range(1, 5)]
         public int Rating { get; set; }
         public string Comment { get; set; }
         public DateTime ReviewDate { get; set; }

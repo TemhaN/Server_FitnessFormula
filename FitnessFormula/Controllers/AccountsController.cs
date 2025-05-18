@@ -3,6 +3,7 @@ using FitnessFormula.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BCrypt.Net;
+using System.Globalization;
 
 namespace FitnessFormula.Controllers
 {
@@ -141,23 +142,6 @@ namespace FitnessFormula.Controllers
             });
         }
 
-
-        private async Task<UserSession> CreateUserSession(int userId)
-        {
-            var token = Guid.NewGuid().ToString();
-            var session = new UserSession
-            {
-                UserId = userId,
-                Token = token,
-                CreatedAt = DateTime.UtcNow,
-                ExpiresAt = DateTime.UtcNow.AddHours(2),
-                IsActive = true
-            };
-            _context.UserSessions.Add(session);
-            await _context.SaveChangesAsync();
-            return session;
-        }
-
         [HttpPut("update/{id}")]
         public async Task<ActionResult<object>> UpdateUser(int id, [FromForm] UserUpdateRequest request)
         {
@@ -167,7 +151,6 @@ namespace FitnessFormula.Controllers
                 return NotFound(new { message = "Пользователь не найден." });
             }
 
-            // Обновляем поля, если они переданы и не равны null
             if (!string.IsNullOrEmpty(request.FullName))
             {
                 user.FullName = request.FullName;
@@ -193,7 +176,6 @@ namespace FitnessFormula.Controllers
                 user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
             }
 
-            // Обработка аватарки
             if (request.AvatarFile != null && request.AvatarFile.Length > 0)
             {
                 var imagesFolderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images");
@@ -214,8 +196,6 @@ namespace FitnessFormula.Controllers
             }
 
             _context.Users.Update(user);
-
-            // Отключаем обновление даты регистрации
             _context.Entry(user).Property(u => u.RegistrationDate).IsModified = false;
             await _context.SaveChangesAsync();
 
@@ -234,16 +214,194 @@ namespace FitnessFormula.Controllers
             });
         }
 
+
+
+        [HttpPost("interests/{userId}")]
+        public async Task<IActionResult> UpdateUserInterests(int userId, [FromBody] List<int> skillIds)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+                return NotFound(new { message = "Пользователь не найден" });
+
+            var existingInterests = await _context.UserInterests
+                .Where(ui => ui.UserId == userId)
+                .ToListAsync();
+            _context.UserInterests.RemoveRange(existingInterests);
+
+            var validSkillIds = await _context.Skills
+                .Where(s => skillIds.Contains(s.SkillId))
+                .Select(s => s.SkillId)
+                .ToListAsync();
+
+            var newInterests = validSkillIds.Select(skillId => new UserInterest
+            {
+                UserId = userId,
+                SkillId = skillId
+            }).ToList();
+
+            _context.UserInterests.AddRange(newInterests);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Интересы пользователя обновлены" });
+        }
+
+        
+
+        [HttpGet("interests/{userId}")]
+        public async Task<ActionResult<IEnumerable<object>>> GetUserInterests(int userId)
+        {
+            var interests = await _context.UserInterests
+                .Where(ui => ui.UserId == userId)
+                .Include(ui => ui.Skill)
+                .Select(ui => new
+                {
+                    SkillId = ui.Skill.SkillId,
+                    SkillName = ui.Skill.SkillName
+                })
+                .ToListAsync();
+
+            return Ok(interests);
+        }
+
+        [HttpGet("weekly-challenge/{userId}")]
+        public async Task<ActionResult<object>> GetWeeklyChallenge(int userId)
+        {
+            var currentDate = DateTime.UtcNow;
+            var calendar = CultureInfo.InvariantCulture.Calendar;
+            var weekNumber = calendar.GetWeekOfYear(currentDate, CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
+            var year = currentDate.Year;
+
+            var challenge = await _context.WeeklyChallenges
+                .Include(wc => wc.Workout)
+                .FirstOrDefaultAsync(wc => wc.UserId == userId && wc.WeekNumber == weekNumber && wc.Year == year);
+
+            if (challenge != null)
+            {
+                return Ok(new
+                {
+                    WorkoutId = challenge.Workout.WorkoutId,
+                    Title = challenge.Workout.Title,
+                    ImageUrl = challenge.Workout.ImageUrl
+                });
+            }
+
+            var challengeWorkouts = await _context.WorkoutRegistrations
+                .Where(wr => wr.UserId == userId)
+                .Include(wr => wr.Workout)
+                .Select(wr => wr.Workout)
+                .ToListAsync();
+
+            if (!challengeWorkouts.Any())
+            {
+                challengeWorkouts = await _context.Workouts
+                    .ToListAsync();
+            }
+
+            if (!challengeWorkouts.Any())
+            {
+                return NotFound(new { message = "Тренировки не найдены" });
+            }
+
+            var randomWorkout = challengeWorkouts[new Random().Next(challengeWorkouts.Count)];
+
+            var newChallenge = new WeeklyChallenge
+            {
+                UserId = userId,
+                WorkoutId = randomWorkout.WorkoutId,
+                WeekNumber = weekNumber,
+                Year = year
+            };
+
+            _context.WeeklyChallenges.Add(newChallenge);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                WorkoutId = randomWorkout.WorkoutId,
+                Title = randomWorkout.Title,
+                ImageUrl = randomWorkout.ImageUrl
+            });
+        }
+
+        [HttpGet("statistics/{userId}")]
+        public async Task<ActionResult<object>> GetUserStatistics(int userId)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+                return NotFound(new { message = "Пользователь не найден" });
+
+            // 1. Количество посещений тренировок
+            var attendanceCount = await _context.WorkoutAttendance
+                .Where(a => a.UserId == userId)
+                .CountAsync();
+
+            // 2. Количество уникальных тренировок
+            var uniqueWorkouts = await _context.WorkoutAttendance
+                .Where(a => a.UserId == userId)
+                .Select(a => a.WorkoutId)
+                .Distinct()
+                .CountAsync();
+
+            // 3. Количество выбранных интересов
+            var interestCount = await _context.UserInterests
+                .Where(ui => ui.UserId == userId)
+                .CountAsync();
+
+            // 4. Последняя посещённая тренировка
+            var lastWorkout = await _context.WorkoutAttendance
+                .Where(a => a.UserId == userId)
+                .Include(a => a.Workout)
+                .OrderByDescending(a => a.AttendanceDate)
+                .Select(a => new
+                {
+                    WorkoutId = a.Workout.WorkoutId,
+                    Title = a.Workout.Title,
+                    AttendanceDate = a.AttendanceDate
+                })
+                .FirstOrDefaultAsync();
+
+            return Ok(new
+            {
+                UserId = userId,
+                FullName = user.FullName,
+                TotalAttendances = attendanceCount,
+                UniqueWorkouts = uniqueWorkouts,
+                InterestCount = interestCount,
+                LastWorkout = lastWorkout != null ? new
+                {
+                    lastWorkout.WorkoutId,
+                    lastWorkout.Title,
+                    AttendanceDate = lastWorkout.AttendanceDate.ToString("yyyy-MM-dd HH:mm")
+                } : null
+            });
+        }
+
+        private async Task<UserSession> CreateUserSession(int userId)
+        {
+            var token = Guid.NewGuid().ToString();
+            var session = new UserSession
+            {
+                UserId = userId,
+                Token = token,
+                CreatedAt = DateTime.UtcNow,
+                ExpiresAt = DateTime.UtcNow.AddHours(2),
+                IsActive = true
+            };
+            _context.UserSessions.Add(session);
+            await _context.SaveChangesAsync();
+            return session;
+        }
+
         public class UserUpdateRequest
         {
             public string? FullName { get; set; }
             public string? Email { get; set; }
             public string? PhoneNumber { get; set; }
             public string? Password { get; set; }
-            public IFormFile? AvatarFile { get; set; } // Файл аватарки
+            public IFormFile? AvatarFile { get; set; }
         }
 
-    public class UserRegisterRequest
+        public class UserRegisterRequest
         {
             public string FullName { get; set; }
             public string Email { get; set; }
