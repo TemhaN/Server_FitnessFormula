@@ -23,5 +23,7 @@ namespace FitnessFormula.Models
 
         [Required]
         public DateTime CommentDate { get; set; } = DateTime.UtcNow;
+
+        public bool IsApproved { get; set; } = false;
     }
 }

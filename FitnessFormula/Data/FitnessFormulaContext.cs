@@ -29,7 +29,61 @@ namespace FitnessFormula.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            // Конфигурация для WorkoutComment
+            modelBuilder.Entity<WorkoutComment>()
+                .ToTable("workoutcomments");
 
+            modelBuilder.Entity<WorkoutComment>()
+                .Property(wc => wc.CommentId)
+                .HasColumnName("commentid")
+                .ValueGeneratedOnAdd();
+
+            modelBuilder.Entity<WorkoutComment>()
+                .Property(wc => wc.WorkoutId)
+                .HasColumnName("workoutid");
+
+            modelBuilder.Entity<WorkoutComment>()
+                .Property(wc => wc.UserId)
+                .HasColumnName("userid");
+
+            modelBuilder.Entity<WorkoutComment>()
+                .Property(wc => wc.CommentText)
+                .HasColumnName("commenttext");
+
+            modelBuilder.Entity<WorkoutComment>()
+                .Property(wc => wc.CommentDate)
+                .HasColumnName("commentdate");
+
+            modelBuilder.Entity<WorkoutComment>()
+                .Property(wc => wc.IsApproved)
+                .HasColumnName("isapproved");
+
+            modelBuilder.Entity<WorkoutComment>()
+                .HasOne(wc => wc.Workout)
+                .WithMany(w => w.WorkoutComments)
+                .HasForeignKey(wc => wc.WorkoutId);
+
+            modelBuilder.Entity<WorkoutComment>()
+                .HasOne(wc => wc.User)
+                .WithMany()
+                .HasForeignKey(wc => wc.UserId);
+
+            // Конфигурация для Review
+            modelBuilder.Entity<Review>()
+                .Property(r => r.IsApproved)
+                .HasColumnName("isapproved");
+
+            modelBuilder.Entity<Review>()
+                .HasOne(r => r.Trainer)
+                .WithMany(t => t.Reviews)
+                .HasForeignKey(r => r.TrainerId);
+
+            modelBuilder.Entity<Review>()
+                .HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserId);
+
+            // Остальные конфигурации остаются без изменений
             modelBuilder.Entity<WeeklyChallenge>()
                 .HasKey(wc => new { wc.UserId, wc.WeekNumber, wc.Year });
 
@@ -61,7 +115,6 @@ namespace FitnessFormula.Data
                 .HasForeignKey(wc => wc.WorkoutId)
                 .HasConstraintName("fk_weeklychallenges_workouts_workoutid");
 
-            // Workout
             modelBuilder.Entity<Workout>()
                 .HasOne(w => w.Gym)
                 .WithMany(g => g.Workouts)
@@ -73,10 +126,11 @@ namespace FitnessFormula.Data
 
             modelBuilder.Entity<Workout>()
                 .Property(w => w.MaxParticipants)
-                .HasColumnName("maxparticipants"); // Маппинг на столбец maxparticipants
+                .HasColumnName("maxparticipants");
 
             modelBuilder.Entity<WorkoutAttendance>()
                 .ToTable("workoutattendance");
+
             modelBuilder.Entity<WorkoutAttendance>()
                 .Property(wa => wa.AttendanceId)
                 .HasColumnName("attendanceid");
@@ -94,7 +148,7 @@ namespace FitnessFormula.Data
                 .HasColumnName("attendancedate");
 
             modelBuilder.Entity<UserInterest>()
-                .ToTable("userinterests"); // Маппинг на таблицу userinterests
+                .ToTable("userinterests");
 
             modelBuilder.Entity<UserInterest>()
                 .Property(ui => ui.UserId)
@@ -104,42 +158,6 @@ namespace FitnessFormula.Data
                 .Property(ui => ui.SkillId)
                 .HasColumnName("skillid");
 
-            // WorkoutComment
-            modelBuilder.Entity<WorkoutComment>()
-                .ToTable("workoutcomments");
-
-            modelBuilder.Entity<WorkoutComment>()
-                .Property(wc => wc.CommentId)
-                .HasColumnName("commentid")
-                .ValueGeneratedOnAdd();
-
-            modelBuilder.Entity<WorkoutComment>()
-                .Property(wc => wc.WorkoutId)
-                .HasColumnName("workoutid");
-
-            modelBuilder.Entity<WorkoutComment>()
-                .Property(wc => wc.UserId)
-                .HasColumnName("userid");
-
-            modelBuilder.Entity<WorkoutComment>()
-                .Property(wc => wc.CommentText)
-                .HasColumnName("commenttext");
-
-            modelBuilder.Entity<WorkoutComment>()
-                .Property(wc => wc.CommentDate)
-                .HasColumnName("commentdate");
-
-            modelBuilder.Entity<WorkoutComment>()
-                .HasOne(wc => wc.Workout)
-                .WithMany(w => w.WorkoutComments)
-                .HasForeignKey(wc => wc.WorkoutId);
-
-            modelBuilder.Entity<WorkoutComment>()
-                .HasOne(wc => wc.User)
-                .WithMany()
-                .HasForeignKey(wc => wc.UserId);
-
-            // WorkoutAttendance
             modelBuilder.Entity<WorkoutAttendance>()
                 .HasOne(wa => wa.Workout)
                 .WithMany(w => w.WorkoutAttendances)
@@ -153,8 +171,6 @@ namespace FitnessFormula.Data
             modelBuilder.Entity<WorkoutAttendance>()
                 .HasIndex(wa => new { wa.WorkoutId, wa.UserId })
                 .IsUnique();
-
-            // Notification
 
             modelBuilder.Entity<Notification>()
                 .ToTable("notifications");
@@ -191,7 +207,6 @@ namespace FitnessFormula.Data
                 .Property(n => n.WorkoutId)
                 .HasColumnName("workoutid");
 
-
             modelBuilder.Entity<Notification>()
                 .HasOne(n => n.User)
                 .WithMany()
@@ -202,7 +217,6 @@ namespace FitnessFormula.Data
                 .WithMany()
                 .HasForeignKey(n => n.WorkoutId);
 
-            // UserInterest
             modelBuilder.Entity<UserInterest>()
                 .HasKey(ui => new { ui.UserId, ui.SkillId });
 
@@ -216,18 +230,6 @@ namespace FitnessFormula.Data
                 .WithMany()
                 .HasForeignKey(ui => ui.SkillId);
 
-            // Review
-            modelBuilder.Entity<Review>()
-                .HasOne(r => r.Trainer)
-                .WithMany(t => t.Reviews)
-                .HasForeignKey(r => r.TrainerId);
-
-            modelBuilder.Entity<Review>()
-                .HasOne(r => r.User)
-                .WithMany()
-                .HasForeignKey(r => r.UserId);
-
-            // TrainerSkills
             modelBuilder.Entity<TrainerSkills>()
                 .HasKey(ts => new { ts.TrainerId, ts.SkillId });
 
@@ -241,7 +243,6 @@ namespace FitnessFormula.Data
                 .WithMany()
                 .HasForeignKey(ts => ts.SkillId);
 
-            // Gym
             modelBuilder.Entity<Gym>()
                 .ToTable("gyms");
 
@@ -257,7 +258,6 @@ namespace FitnessFormula.Data
             modelBuilder.Entity<Gym>()
                 .Property(g => g.Address)
                 .HasColumnName("address");
-
         }
     }
 }

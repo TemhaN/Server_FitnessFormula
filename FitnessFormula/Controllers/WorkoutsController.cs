@@ -429,6 +429,40 @@ namespace FitnessFormula.Controllers
             return Ok(dailyWorkout);
         }
 
+        [HttpGet("check")]
+        public async Task<ActionResult<object>> CheckAttendance(int workoutId, int userId)
+        {
+            var attendance = await _context.WorkoutAttendance
+                .AnyAsync(a => a.WorkoutId == workoutId && a.UserId == userId);
+
+            return Ok(new { attended = attendance });
+        }
+        [HttpGet("pending/user/{userId}")]
+        public async Task<ActionResult<IEnumerable<object>>> GetPendingCommentsByUser(int userId)
+        {
+            var comments = await _context.WorkoutComments
+                .Where(c => c.UserId == userId && !c.IsApproved)
+                .Include(c => c.Workout)
+                .ThenInclude(w => w.Trainer)
+                .ThenInclude(t => t.User)
+                .Select(c => new
+                {
+                    c.CommentId,
+                    c.WorkoutId,
+                    WorkoutTitle = c.Workout.Title,
+                    c.UserId,
+                    c.CommentText,
+                    c.CommentDate,
+                    Trainer = new
+                    {
+                        c.Workout.Trainer.TrainerId,
+                        c.Workout.Trainer.User.FullName
+                    }
+                })
+                .ToListAsync();
+
+            return Ok(comments);
+        }
         public class WorkoutCreateRequest
         {
             [Required]
